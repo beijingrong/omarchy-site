@@ -37,14 +37,17 @@ try {
   await writeFile(
     config,
     JSON.stringify({
-      name: `omarchy-${code}`,
+      name: `omarchy-${code.toLowerCase()}`,
       account_id: process.env.CLOUDFLARE_ACCOUNT_ID,
       compatibility_date: '2026-09-07',
       workers_dev: true,
       ...(flags.includes('--domain')
         ? {
             routes: [domain, ...(locales[code].aliases ?? [])].map(
-              (hostname) => ({ pattern: hostname, custom_domain: true }),
+              (hostname) => ({
+                pattern: hostname,
+                custom_domain: true,
+              }),
             ),
           }
         : {}),

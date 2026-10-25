@@ -1,9 +1,15 @@
-import { language, locale, localizedHref } from './site'
-const metadata = import.meta.glob<Record<string, { title: string }>>(
+import { PROSE } from '../lib/prose'
+import { localizedHref, contentLocale } from './site'
+import { date } from './format'
+import {
+  currentNewsTranslation,
+  type NewsTranslation,
+} from '../lib/news-translation'
+const metadata = import.meta.glob<Record<string, NewsTranslation>>(
   './*/news.json',
   { import: 'default', eager: true },
 )
-const newsMeta = metadata[`./${language}/news.json`] ?? {}
+const newsMeta = metadata[`./${contentLocale}/news.json`] ?? {}
 import { excerptFromHtml } from '../lib/seo'
 import type { NewsPost } from '../lib/news'
 
@@ -14,22 +20,26 @@ const newsHtml = import.meta.glob<string>('./*/news/*.html', {
 })
 
 export function translateNews(post: NewsPost): NewsPost {
-  if (language === 'en') return post
-  const meta = (newsMeta as Record<string, { title: string }>)[post.slug]
-  const html = newsHtml[`./${language}/news/${post.slug}.html`]
-  if (!meta || !html)
-    throw new Error(`Missing ${language} news translation: ${post.slug}`)
+  if (contentLocale === 'en')
+    return {
+      ...post,
+      html: localizeLinks(post.html),
+      dateStr: date('longDate', new Date(post.date)),
+    }
+  const meta = (newsMeta as Record<string, NewsTranslation>)[post.slug]
+  const html = newsHtml[`./${contentLocale}/news/${post.slug}.html`]
+  if (!currentNewsTranslation(post, meta, html))
+    return {
+      ...post,
+      html: `<div lang="en" dir="ltr">${localizeLinks(post.html)}</div>`,
+      dateStr: date('longDate', new Date(post.date)),
+    }
   return {
     ...post,
     title: meta.title,
     html: localizeLinks(html),
     excerpt: excerptFromHtml(html),
-    dateStr: new Intl.DateTimeFormat(locale.formatLocale, {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    }).format(new Date(post.date)),
+    dateStr: date('longDate', new Date(post.date)),
   }
 }
 
@@ -37,14 +47,14 @@ const blockCatalogues = import.meta.glob<Record<string, string>>(
   './*/blocks.json',
   { import: 'default', eager: true },
 )
-const blocks = blockCatalogues[`./${language}/blocks.json`] ?? {}
+const blocks = blockCatalogues[`./${contentLocale}/blocks.json`] ?? {}
 import { t } from './site'
 
 /** Translate authored prose blocks without copying live donor lists or asset markup. */
 export function translateHtml(html: string): string {
-  if (language === 'en') return html
+  if (contentLocale === 'en') return localizeLinks(html)
   const translated = html.replace(
-    /<(p|h2|h3|figcaption|li)\b([^>]*)>([\s\S]*?)<\/\1>/g,
+    PROSE,
     (whole, tag: string, attrs: string, inner: string) => {
       const replacement = (blocks as Record<string, string>)[inner]
       return replacement ? `<${tag}${attrs}>${replacement}</${tag}>` : whole

@@ -4,6 +4,7 @@ import react from '@astrojs/react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 import { devPassthrough } from './scripts/dev-passthrough.mjs'
+import { intlData } from './src/i18n/intl-data.ts'
 
 const language = process.env.PUBLIC_SITE_LOCALE || 'en'
 if (!Object.hasOwn(locales, language))
@@ -19,6 +20,11 @@ export default defineConfig({
   outDir: language === 'en' ? './dist/client' : `./dist/${language}`,
   integrations: [react()],
   vite: {
+    define: {
+      __EDITION_INTL__: JSON.stringify(
+        intlData(locales[language].formatLocale),
+      ),
+    },
     plugins: [tailwindcss(), devPassthrough()],
     optimizeDeps: { entries: ['!src/parked/**'] },
     resolve: {
@@ -26,7 +32,9 @@ export default defineConfig({
       alias: [
         {
           find: './current-messages.ts',
-          replacement: path.resolve(`./src/i18n/messages/${language}.json`),
+          replacement: path.resolve(
+            `./src/i18n/messages/${locales[language].contentLocale ?? language}.json`,
+          ),
         },
         {
           find: '@/lib/content',

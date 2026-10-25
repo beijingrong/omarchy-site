@@ -12,6 +12,8 @@ import {
   SearchIcon,
 } from '@/components/icons'
 import { OmarchyMarkDrawn, OmarchyWordmark } from '@/components/Brand'
+import { GlobeIcon } from '@/components/icons/GlobeIcon'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { MusicMenuControl } from '@/components/MusicControl'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useHashLink, useTopLink } from '@/lib/hash-scroll'
+import { useHashLink } from '@/lib/hash-scroll'
 import { OPEN_PICKER_EVENT, THEME_EVENT, groundOf } from '@/lib/theme'
 import { OPEN_SEARCH_EVENT } from '@/lib/search'
 import { cn } from '@/lib/utils'
@@ -53,7 +55,7 @@ const navLinks = [
   { to: '/news/', label: t('News') },
   { to: '/manual/', label: t('Manual') },
   // Old /plugins/ addresses redirect to the standalone directory.
-  { href: 'https://plugins.omarchy.org', label: 'Plugins' },
+  { href: 'https://plugins.omarchy.org', label: t('Plugins') },
   { to: '/themes/', label: t('Themes') },
 ] as const
 
@@ -411,7 +413,6 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
   const heroInView = useHeroInView(pathname === '/')
   const [menuOpen, setMenuOpen] = useState(false)
   const installLink = useHashLink('install')
-  const homeLink = useTopLink()
   const transparent = heroInView
 
   useEffect(() => setMenuOpen(false), [pathname])
@@ -423,7 +424,7 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
   }, [menuOpen])
   useEffect(() => {
     const root = document.documentElement
-    if (menuOpen) root.dataset.navMenu = t('open')
+    if (menuOpen) root.dataset.navMenu = 'open'
     else delete root.dataset.navMenu
     return () => {
       delete root.dataset.navMenu
@@ -436,26 +437,27 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
   const glyph = (
     <Link
       to="/"
-      aria-label={t('Omarchy home')}
-      onClick={homeLink}
+      aria-label={t('Search Omarchy')}
+      onClick={(event) => {
+        // A plain click opens the menu, whose first row is Home. A modified or
+        // middle click is still a link home, as the browser expects of one.
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        )
+          return
+        event.preventDefault()
+        window.dispatchEvent(new CustomEvent(OPEN_SEARCH_EVENT))
+      }}
       className="mark-draw-trigger relative flex items-center"
     >
       <OmarchyMarkDrawn className="size-[22px] shrink-0 transition-opacity duration-150 ease-out max-sm:group-data-[nav-past-hero]/bar:opacity-0 lg:size-[calc(var(--pxc)*2)]" />
       <OmarchyWordmark className="absolute top-1/2 left-0 w-28 -translate-y-1/2 text-brand opacity-0 transition-opacity duration-150 ease-out group-data-[nav-past-hero]/bar:opacity-100 sm:hidden" />
     </Link>
-  )
-
-  const search = (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label={t('Search Omarchy')}
-      data-nav-glyph
-      className="relative h-8 w-8 text-text-secondary transition-[background-color,transform] hover:text-text before:absolute before:-inset-1 lg:h-[calc(var(--pxr)*3)] lg:w-[calc(var(--pxr)*3)]"
-      onClick={() => window.dispatchEvent(new CustomEvent(OPEN_SEARCH_EVENT))}
-    >
-      <SearchIcon className="size-5" />
-    </Button>
   )
 
   const theme = (
@@ -483,7 +485,7 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
   )
 
   return (
-    <header className="pixel-container sticky top-0 z-(--z-nav)">
+    <header dir="ltr" className="pixel-container sticky top-0 z-(--z-nav)">
       <div
         ref={bar}
         data-nav-blend={transparent ? '' : undefined}
@@ -507,7 +509,11 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
           {glyph}
 
-          <nav aria-label={t('Main')} className="hidden items-center sm:flex">
+          <nav
+            data-nav-links
+            aria-label={t('Main')}
+            className="hidden items-center sm:flex"
+          >
             {navLinks.map((link) =>
               'href' in link ? (
                 <a
@@ -533,12 +539,10 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
           <div className="ml-auto flex items-center gap-2.5">
             <div className="hidden items-center gap-1 sm:flex">
               <TooltipProvider delay={300}>
-                <NavTooltip label={t('Search Omarchy')} shortcut="⌘K / Ctrl+K">
-                  {search}
-                </NavTooltip>
                 <NavTooltip label={t('Change website theme')} shortcut="T">
                   {theme}
                 </NavTooltip>
+                <LanguageSwitcher path={pathname} />
                 <NavTooltip label={t('Subscribe via RSS')}>
                   <Button
                     variant="ghost"
@@ -568,6 +572,10 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
               </TooltipProvider>
               <span className="ml-2 flex">{install}</span>
             </div>
+            <div className="flex items-center gap-1 sm:hidden">
+              {theme}
+              <LanguageSwitcher path={pathname} />
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -575,7 +583,7 @@ export function SiteHeader({ path = '/' }: { path?: string }) {
               className="relative size-8 text-text-secondary transition-[background-color,transform] hover:text-text before:absolute before:-inset-1 sm:hidden"
               aria-expanded={menuOpen}
               aria-controls="site-menu"
-              aria-label={menuOpen ? 'Close menu' : 'Menu'}
+              aria-label={menuOpen ? t('Close menu') : t('Menu')}
               onClick={() => setMenuOpen((open) => !open)}
             >
               <MenuBarsIcon open={menuOpen} className="size-[22px]" />
@@ -700,6 +708,7 @@ export function HeroNavGhost() {
   return (
     <div
       aria-hidden="true"
+      dir="ltr"
       data-nav-ghost
       className="pointer-events-none fixed inset-x-0 top-0 z-(--z-nav) mix-blend-difference"
       // The header hydrates before the hero does, and its effect writes this
@@ -736,10 +745,10 @@ export function HeroNavGhost() {
             style={{ color: 'var(--t-hdr-text-2)' }}
           >
             <span className="flex h-8 w-8 items-center justify-center lg:h-[calc(var(--pxr)*3)] lg:w-[calc(var(--pxr)*3)]">
-              <SearchIcon className="size-5" />
+              <PaletteIcon className="size-5" />
             </span>
             <span className="flex h-8 w-8 items-center justify-center lg:h-[calc(var(--pxr)*3)] lg:w-[calc(var(--pxr)*3)]">
-              <PaletteIcon className="size-5" />
+              <GlobeIcon className="size-5" />
             </span>
             <span className="flex h-8 w-8 items-center justify-center lg:h-[calc(var(--pxr)*3)] lg:w-[calc(var(--pxr)*3)]">
               <RssIcon className="size-5" />

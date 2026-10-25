@@ -28,8 +28,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SITE = Path(os.environ.get('OMARCHY_SITE_DIR', ROOT)).resolve()
 OUT = ROOT / 'dist' / 'client'
-SKIP_DIRS = {'.astro', '.git', 'bin', 'templates', 'content', '.github', '.claude', '.agents', '.codex', '.idea', '.tanstack', 'node_modules', 'src', 'scripts', 'docs', 'dist', 'public', '__pycache__'}
-SKIP_FILES = {'astro.config.mjs', 'README.md', '.gitignore', '.assetsignore', '.DS_Store', 'package.json', 'package-lock.json', 'wrangler.jsonc', 'vite.config.ts', 'tsconfig.json', 'tsr.config.json', 'components.json', 'eslint.config.js', 'prettier.config.js', '.prettierignore', '.cta.json'}
+SKIP_DIRS = {'.wrangler', '.astro', '.git', 'bin', 'templates', 'content', '.github', '.claude', '.agents', '.codex', '.idea', '.tanstack', 'node_modules', 'src', 'scripts', 'docs', 'dist', 'public', '__pycache__'}
+SKIP_FILES = {'.git', 'astro.config.mjs', 'README.md', '.gitignore', '.assetsignore', '.DS_Store', 'package.json', 'package-lock.json', 'wrangler.jsonc', 'vite.config.ts', 'tsconfig.json', 'tsr.config.json', 'components.json', 'eslint.config.js', 'prettier.config.js', '.prettierignore', '.cta.json'}
 
 
 def addresses():
@@ -51,7 +51,7 @@ def addresses():
                         file.relative_to(SITE).as_posix(), 'file'))
     data = SITE / 'src' / 'data'
     read = lambda name: json.loads((data / f'{name}.json').read_text())
-    pages = {'/', '/404.html', '/manual/', '/manual/toc/', '/news/', '/themes/',
+    pages = {'/', '/404.html', '/doctrine/', '/manual/', '/manual/toc/', '/news/', '/themes/',
              '/teams/', '/plugins/', '/plugins/explore/', '/plugins/develop/',
              '/plugins/publish/'}
     pages.update(f'/{slug}/' for slug in read('pages'))

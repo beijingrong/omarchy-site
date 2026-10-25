@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import locales from '../src/i18n/locales.json' with { type: 'json' }
+import { currentNewsTranslation } from '../src/lib/news-translation.ts'
 /** Copy passthrough files and generate redirects in dist/client after the Astro build. */
 import { cp, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -13,6 +14,7 @@ const LANGUAGE = process.env.PUBLIC_SITE_LOCALE || 'en'
 if (!Object.hasOwn(locales, LANGUAGE))
   throw new Error(`Unknown site language: ${LANGUAGE}`)
 const SITE_URL = locales[LANGUAGE].domain
+const CONTENT_LOCALE = locales[LANGUAGE].contentLocale ?? LANGUAGE
 const OUT = path.join(
   ROOT,
   LANGUAGE === 'en' ? 'dist/client' : `dist/${LANGUAGE}`,
@@ -113,12 +115,23 @@ if (LANGUAGE !== 'en') {
   const posts = JSON.parse(
     await readFile(path.join(ROOT, 'src/data/news-posts.json'), 'utf8'),
   )
-  const translations = JSON.parse(
-    await readFile(path.join(ROOT, `src/i18n/${LANGUAGE}/news.json`), 'utf8'),
-  )
+  const translations =
+    CONTENT_LOCALE === 'en'
+      ? Object.fromEntries(
+          posts.map((post) => [post.slug, { title: post.title }]),
+        )
+      : JSON.parse(
+          await readFile(
+            path.join(ROOT, `src/i18n/${CONTENT_LOCALE}/news.json`),
+            'utf8',
+          ).catch((error) => {
+            if (error.code === 'ENOENT') return '{}'
+            throw error
+          }),
+        )
   const messages = JSON.parse(
     await readFile(
-      path.join(ROOT, `src/i18n/messages/${LANGUAGE}.json`),
+      path.join(ROOT, `src/i18n/messages/${CONTENT_LOCALE}.json`),
       'utf8',
     ),
   )
@@ -129,10 +142,27 @@ if (LANGUAGE !== 'en') {
     ] || feedTitle
   const items = await Promise.all(
     posts.map(async (post) => {
-      const rawBody = await readFile(
-        path.join(ROOT, `src/i18n/${LANGUAGE}/news`, `${post.slug}.html`),
-        'utf8',
+      const translatedBody =
+        CONTENT_LOCALE === 'en'
+          ? post.html
+          : await readFile(
+              path.join(
+                ROOT,
+                `src/i18n/${CONTENT_LOCALE}/news`,
+                `${post.slug}.html`,
+              ),
+              'utf8',
+            ).catch((error) => {
+              if (error.code === 'ENOENT') return undefined
+              throw error
+            })
+      const current = currentNewsTranslation(
+        post,
+        translations[post.slug],
+        translatedBody,
       )
+      const rawBody = current ? translatedBody : post.html
+      const title = current ? translations[post.slug].title : post.title
       const body = rawBody.replace(
         /(href|src)="(\/[^" ]*)"/g,
         (_, attribute, href) => {
@@ -144,7 +174,7 @@ if (LANGUAGE !== 'en') {
         },
       )
       const url = `${SITE_URL}${post.path}`
-      return `<item><title>${escapeHtml(translations[post.slug].title)}</title><link>${escapeHtml(url)}</link><guid isPermaLink="true">${escapeHtml(url)}</guid><pubDate>${new Date(post.date + 'T00:00:00Z').toUTCString()}</pubDate><description>${escapeHtml(body)}</description></item>`
+      return `<item><title>${escapeHtml(title)}</title><link>${escapeHtml(url)}</link><guid isPermaLink="true">${escapeHtml(url)}</guid><pubDate>${new Date(post.date).toUTCString()}</pubDate><description>${escapeHtml(body)}</description></item>`
     }),
   )
   await writeFile(
